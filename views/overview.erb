@@ -1,0 +1,152 @@
+<html>
+	<head>
+		<title>AltoEdit: Overzicht</title>
+		<script type="text/javascript" src="/js/prototype/prototype.js"></script>
+		<script type="text/javascript">
+			function togglePageInfo(urn, user, role, is_rejected) {
+				if($("info:" + urn + (is_rejected ? ":rejected" : "")).innerHTML == "" || $("info:" + urn + (is_rejected ? ":rejected" : "")).innerHTML == "&nbsp;") {
+					$$(".pageInfo").each(function(e) { e.innerHTML = "" });
+					$("info:" + urn).insert(new Element("img", {"src": "/img/spinner.gif"}));
+					new Ajax.Updater("info:" + urn + (is_rejected ? ":rejected" : ""), "<%= options.context_root %>/" + urn + "/pageInfo", {
+						method: "post",
+						parameters: {
+							"username": user,
+							"role": role,
+							"only_rejects": (is_rejected ? "true" : "false")
+						}
+					});
+				} else {
+					$("info:" + urn).innerHTML = "";
+				}
+			}
+
+			function bookview(sts, link) {
+				$$(".container").each(Element.hide);
+				$$(".tab").each(function(tab) { tab.removeClassName("selected")});
+				$("books_" + sts).style.display = "block";
+				link.addClassName("selected");
+			}
+
+			function pollForStatus() {
+				new Ajax.Request("<%= options.context_root %>/statusPoll", {
+					method: "get",
+					onSuccess: function(r) { updateStatus(r.responseText.evalJSON());}
+				});
+			}
+
+			window.onload = function() {
+				$$(".tab").each(function(t) { t.observe("mouseover", function(e) { this.style.color = "blue"; })});
+				$$(".tab").each(function(t) { t.observe("mouseout", function(e) { this.style.color = "black"; })});
+			}
+		</script>
+		<style type="text/css">
+			tr.new {
+				background-color: white
+			}
+			tr.pending {
+				background-color: #ffa;
+			}
+			tr.done {
+				background-color: #afa;
+			}
+			tr.done.reject {
+				background-color: transparent;
+				color: red;
+				font-weight: bold;
+			}
+			b.ok { color: green; }
+			b.err { color: red; }
+			a.tab {
+				display: inline-block;
+				width: 120px;
+				border-top: 1px solid;
+				border-left: 1px solid;
+				border-right: 1px solid;
+				padding-left: 10px;
+				cursor: pointer;
+				height: 18px;
+				background-color: #ddd;
+				z-index: 1;
+				position: relative;
+				top: 3px;
+			}
+			a.selected {
+				top: 0px;
+				height: 22px;
+				background-color: white;
+			}
+			div.container {
+				z-index: 0; 
+				border:1px solid; 
+				height: 80%; 
+				overflow: auto; 
+				padding: 10px; 
+				display: none;
+				position: relative;
+				top: -1px;
+				background-color: white;
+			}
+			div.selected {
+				display: block;
+			}
+			a.bar {
+				margin: 0 0 0 1px;
+				display: inline-block; 
+				height: 10px;
+				cursor: help;
+			}
+			a.green { background-color: green; }
+			a.yellow { background-color: #fa0; }
+			a.gray { background-color: #aaa; }
+		</style>
+		<!--[if IE]>
+			<style type="text/css">
+				a.tab { top: -1px; }
+				a.selected { top: 0px; height: 24px; }
+			</style>
+		<![endif]-->
+	</head>
+  <body style="font-size: 12px; font-family: arial, sans; line-height: 18px;">
+		<a style="float: right" href="<%= options.context_root %>/logout">Uitloggen</a>
+		<% if session[:role] == "admin" %>
+			<a style="float: right" href="<%= options.context_root %>/webapp/admin/accounts">Accounts beheren&nbsp</a>
+		<% end %>
+		<i style="float: right">Ingelogd als <b><%= session[:user] %></b>&nbsp; &nbsp;</i>
+		<h1>Alto Edit - overzicht</h1>
+		<hr style="clear: both" />
+
+		<% (@messages || []).each do |msg| %>
+			<b class="<%= msg[:msg_class] %>"><%= msg[:msg] %></b><br />
+		<% end %>
+
+		<% if session[:role] == "admin" %>
+			<form action="<%= options.context_root %>/add_book" method="post">
+				Boek toevoegen<br />
+				<label>Urn: </label><input type="text" name="urn" />
+				<input type="submit" value="Ok" />
+			</form>
+		<% end %>
+
+		<a onclick="bookview('pending', this)" class="tab selected">Bezig (<%= @books["pending"].count %>)</a>
+		<a onclick="bookview('new', this)" class="tab">Nieuw (<%= @books["new"].count %>)</a>
+		<a onclick="bookview('done', this)" class="tab">Gereed (<%= @books["done"].count %>)</a>
+		<% if session[:role] == "admin" %>
+			<a onclick="bookview('rejected', this)" class="tab">Niet behandeld (<%= @books["rejected"].count %>)</a>
+		<% end %>
+		<% @books.each do |status, cursor| %>
+			<div id="books_<%= status %>" class="container <%= status == "pending" ? "selected" : "" %>" >  
+			<% cursor.each do |doc| %>
+				<% perc_pending = ((doc["pending_pages"].to_f / doc["total_pages"].to_f) * 100).to_i %>
+				<% perc_done = ((doc["done_pages"].to_f / doc["total_pages"].to_f) * 100).to_i %>
+				<% perc_new = ((doc["new_pages"].to_f / doc["total_pages"].to_f) * 100).to_i %>
+				<a id="done:<%= doc["urn"] %>" class="bar green" title="Gereed" style="width: <%= perc_done %>px;"></a><a id="pending:<%= doc["urn"] %>" class="bar yellow" title="Bezig" style="width: <%= perc_pending %>px;"></a><a id="new:<%= doc["urn"] %>" title="Nieuw" class="bar gray" style="width: <%= perc_new %>px;"></a>
+				<a href="#" onclick="togglePageInfo('<%= doc["urn"] %>', '<%= session[:user] %>', '<%= session[:role] %>'<%= ", true" if status == "rejected" %>)">
+					<%= doc["urn"] + " - <i>" + doc["title"] + "</i>" %>
+				</a>
+					<i style="color: #aaa"><%= "(" + doc["editors"].join(", ") +")" unless doc["editors"].length == 0%></i>
+				<div style="line-height: 1px" class="pageInfo" id="info:<%= doc["urn"] %><%= ":rejected" if status == "rejected"%>">&nbsp;</div>	
+			<% end %>
+			</div>
+		<% end %>
+	</body>
+</html>

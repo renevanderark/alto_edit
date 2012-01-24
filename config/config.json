@@ -1,0 +1,10 @@
+{
+	"mongo": {
+		"update_db": "",
+		"admin_db": "",
+		"user_db": "",
+		"host": "",
+		"port": 27017
+	},
+	"context_root": ""
+}

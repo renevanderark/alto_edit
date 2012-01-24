@@ -1,0 +1,19 @@
+<table style="font-size: 8pt">
+	<tr style="text-align: left">
+		<th>Pagina</th>
+		<th>Status</th>
+		<th colspan="2">Bewerker</th>
+		<th>Reden onbehandeld</th>
+	</tr>
+	<% @pages.each do |page| %>
+		<tr class="<%= page["status"] %> <%= page["reject_message"].nil? ? "" : "reject" %>">
+			<td><%= page["urn"] %></td>
+			<td><%= page["status"] %></td>
+			<td><%= page["editor"] || "<i>geen</i>" %></td>
+			<td>
+				<a href="<%= options.context_root %>/webapp/<%= page["urn"]%>/edit"><%= params[:role] == "admin" ? "tonen" : "bewerken" %></a>
+			</td>
+			<td><%= page["reject_message"] || "" %></td>
+		</tr>
+	<% end %>
+</table>

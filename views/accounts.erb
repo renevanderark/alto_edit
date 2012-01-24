@@ -1,0 +1,61 @@
+<html>
+	<head>
+		<title>AltoEdit: Accounts beheren</title>
+		<style type="text/css">
+			label {
+				display: inline-block;
+				font-weight: bold;
+				width: 150px;
+			}
+			b.err { color: red }
+			b.ok { color: green }
+		</style>
+	</head>
+  <body style="font-size: 12px; font-family: arial, sans; line-height: 18px;">
+		<a style="float: right" href="<%= options.context_root %>/logout">Uitloggen</a>
+		<a style="float: right" href="<%= options.context_root %>/webapp/overview">Overzichtspagina&nbsp;</a>
+		<i style="float: right">Ingelogd als <b><%= session[:user] %></b>&nbsp; &nbsp;</i>
+		<h1>Alto Edit - Accounts beheren</h1>
+		<hr style="clear: both" />
+
+		<% (@messages || []).each do |msg| %>
+			<b class="<%= msg[:msg_class] %>"><%= msg[:msg] %></b><br />
+		<% end %>
+
+
+		<h2>Gebruikers</h2>
+		<table border="1">
+			<tr style="text-align: left">
+				<th>Gebruikersnaam</th>
+				<th colspan="2">Rol</th>
+			</tr>
+		<% @users.each do |doc| %>
+			<tr>
+				<td><%= doc["username"] %></td>
+				<td><%= doc["role"] %></td>
+				<td>
+					<% unless doc["role"] == "admin" %>
+						<form action="<%= options.context_root%>/webapp/admin/drop_user" method="post" style="margin: 0; padding: 0">
+							<input name="username" type="hidden" value="<%= doc["username"] %>" />
+							<input type="submit" value="Verwijderen" />
+						</form>
+					<% end %>
+				</td>
+			</tr>
+		<% end %>
+		</table>
+		<h2>Nieuwe gebruiker</h2>
+		<form action="<%= options.context_root %>/webapp/admin/accounts" method="post">
+			<label>Gebruikersnaam</label>
+			<input type="text" name="username" /><br />
+			<label>Wachtwoord</label>
+			<input type="password" name="password" /><br />
+			<label>Rol</label>
+			<select name="role">
+				<option value="user">user</option>
+				<option value="admin">admin</option>
+			</select>
+			<input type="submit" value="Opslaan" />
+		</form>
+	</body>
+</html>

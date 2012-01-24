@@ -1,0 +1,24 @@
+<html>
+	<head>
+		<title>AltoEdit: Inloggen</title>
+		<style type="text/css"> 
+			label { display: inline-block; width: 120px }
+			b.err { color: red }
+			b.ok { color: green }
+		</style>
+	</head>
+	<body style="font-family: arial, sans; font-size: 12px">
+		<h1>Alto Edit - Inloggen</h1>
+		<hr style="clear: both" />
+    <% (@messages || []).each do |msg| %>
+      <b class="<%= msg[:msg_class] %>"><%= msg[:msg] %></b><br />
+    <% end %>
+		<form method="post">
+			<label>Gebruikersnaam</label>
+			<input type="text" name="user" /><br />
+			<label>Wachtwoord</label>
+			<input type="password" name="password" /><br />
+			<input type="submit" value="Inloggen" />
+		</form>
+	</body>
+</html>

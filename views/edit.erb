@@ -1,0 +1,189 @@
+<html>
+	<head id="header">
+		<title>Alto Edit - Pagina bewerken</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/> 
+		<style type="text/css">
+			b.ok {color: green}; 
+			b.err {color: red} 
+			option.pending {color: blue}; 
+			option.done {color: green} 
+			form { margin: 0}
+			#ocr_container {
+				width: 450px; 
+				height: 600px; 
+				float: left; 
+				margin-left: 8px; 
+				border: 1px solid; 
+				overflow-y: auto;
+				overflow-x: auto; 
+				font-family: DPCustomMono2, courier, serif;
+			}
+			#ocr_container input {
+				font-family: DPCustomMono2, courier, serif;
+			}
+			#ocr_container a {
+				font-family: arial, sans-serif;
+			}
+		</style>
+		<script type="text/javascript" src="<%= options.context_root %>/js/prototype/prototype.js"></script>
+		<script type="text/javascript" src="<%= options.context_root %>/js/effects/effects.js"></script>
+		<script type="text/javascript" src="<%= options.context_root %>/js/image_client_jp2.js"></script>
+		<script type="text/javascript" src="<%= options.context_root %>/js/seg_edit.js"></script>
+		<script type="text/javascript" src="<%= options.context_root %>/js/alto_view.js"></script>
+		<script type="text/javascript" src="<%= options.context_root %>/js/interface.js"></script>
+		<script type="text/javascript">
+			var user = "<%= session[:user] %>";
+			var book_urn = "<%= @book_urn %>";
+			var context_root = "<%= options.context_root %>";
+
+			function init(alto) {
+				if(image_client) {
+					// TODO reinit
+				} else {
+					image_client = new ImageClient(
+						"image_container",
+						alto.identifier, {
+							w: alto.page_width,
+							h: alto.page_height
+						}, "",
+						"<%= options.context_root %>/img/spinner.gif",
+						<%= session[:swap_ratio] && session[:swap_ratio] == @book_urn ? "1.0" : "2.0" %>
+					);
+				}
+				if(viewer) {
+					// TODO reinit
+				} else {
+					viewer = new AltoView(alto, image_client, "ocr_container");
+				}
+				image_client.render();
+			}
+
+			function json_alto(callback, timestamp) {
+				$('header').insert(new Element("script", {
+					"id": "json_alto_jsonp_response",
+					"type": "text/javascript", 
+					"src": "<%= options.context_root %>/<%= params[:urn] %>" + "?callback=" + callback + (timestamp ? "&timestamp=" + timestamp : "")
+				}));
+			}
+
+
+
+			window.onload = function() {
+				$('spinner_div').hide();
+				new Ajax.Request("<%= options.context_root %>/updateUser", {
+					method: "post",
+					parameters: {
+						"username": "<%= session[:user] %>", 
+						"role": "<%= session[:role] %>", 
+						"urn": "<%= params[:urn] %>"
+					},
+					onSuccess: function(r) {
+						if(r.responseText != "") {
+							alert("Deze pagina wordt al bewerkt door " + r.responseText);
+							location.href = "<%= options.context_root %>/webapp/overview";
+						}
+					}
+				});
+				<% if session[:view_resize] == @book_urn %>
+					scaleWindows(<%= session[:image_container_width] || "null" %>, <%= session[:ocr_container_width] || "null" %>);
+				<% else %>
+					scaleWindows();
+				<% end %>
+				json_alto("init");
+				addNavigationObservers();
+			}
+
+			window.onresize = function() { 
+				scaleWindows() 
+			}
+
+			window.onbeforeunload = validateUnload; 
+		</script>
+	</head>
+
+	<body style="font-size: 12px; font-family: arial, sans; line-height: 18px;">
+		<a class="navigation_link" style="float: right" href="<%= options.context_root %>/logout">Uitloggen</a>
+		<a class="navigation_link" style="float: right" href="<%= options.context_root %>/webapp/overview">Overzichtspagina&nbsp;</a>
+		<% if session[:role] == "admin" %>
+			<b style="float: left; color: red"><%= "Onbewerkt omdat:  #{@reject_message}" if @reject_message %></b>
+			<a style="float: right" href="<%= options.context_root %>/webapp/admin/accounts">Accounts beheren&nbsp</a>
+		<% end %>
+		<i style="float: right">Ingelogd als <b><%= session[:user] %></b>&nbsp; &nbsp;</i>
+		<i style="float: left">&nbsp;<%= @title %>&nbsp;(<%= @curpage %> / <%= @total_pages %>)</i>
+		<hr style="clear: both"/>
+		<% if session[:role] == "admin" %>
+			&nbsp;<i style="float:right">&nbsp;<%= @status %></i><b style="float:right; margin-left: 10px">Status: </b>
+			&nbsp;<i style="float:right">&nbsp;<%= @editor %></i><b style="float:right">Bewerker: </b>
+		<% end %>
+		<form style="float: left" id="update_form" onsubmit="viewer.saveCurrentUpdate();" action="<%= options.context_root %>/updatePage/<%= params[:urn] %>/asEditor/<%= session[:user] %>" method="post" style="float: left">
+			<input type="submit" value="Opslaan" />
+			<% if session[:role] == "user" %>
+				<input type="submit" name="finalize" value="Definitief opslaan en verder" />
+				<input type="submit" name="finalize_and_to_overview" value="Definitief opslaan en terug naar overzicht" />
+			<% end %>
+		</form>
+		<% if session[:role] == "admin" %>
+			<form style="float: left" method="post" action="<%= options.context_root %>/<%= params[:urn] %>/pageIsNotDone">
+				<input type="submit" value="Pagina afkeuren" />
+			</form>
+		<% end %>
+		<form style="float: left" method="get" action="">
+			<% if session[:swap_ratio] && session[:swap_ratio] == @book_urn  %>
+				<input name="swap_ratio" type="hidden" value="false" />
+			<% else %>
+				<input name="swap_ratio" type="hidden" value="true" />
+			<% end %>
+			<input type="submit" value="Ratio correctie" />
+		</form>
+		<% if session[:role] == "admin" %>
+			<b style="float: left">&nbsp;Spring naar: &nbsp;</b>
+			<select style="float: left" onchange="location.href = this.value">
+				<option>...</option>
+				<% @pages.each do |page| %>
+					<option value="<%= options.context_root%>/webapp/<%= page["urn"]%>/edit" class="<%= page["status"] %>">
+						Pagina <%= page["urn"].sub(/^.+:/, "").to_i %> (<%= page["status"] %>:<%= page["editor"] || "" %>)
+					</option>
+				<% end %>
+			</select>
+			<% if @prevPageUrn %>
+				<a style="float:left; margin-left: 10px" href="<%= options.context_root %>/webapp/<%= @prevPageUrn %>/edit">&lt;&lt; Vorige</a>&nbsp;
+			<% end %>
+			<% if @nextPageUrn %>
+				<a style="float:left; margin-left: 10px" href="<%= options.context_root %>/webapp/<%= @nextPageUrn %>/edit">Volgende &gt;&gt;</a>
+			<% end %>
+		<% end %>
+		<% if session[:role] == "user" %>
+			<button onclick="$('reject_form').toggle()">Pagina overslaan</button>
+			<form id="reject_form" onsubmit="if($('reason').value == '') { $('reason_label').style.color = 'red'; return false; }" style="display: none" method="post" action="<%= options.context_root %>/<%= params[:urn] %>/rejectPage">
+				<b id='reason_label'>Geef de reden op om de pagina over te slaan</b><br />
+				<textarea id="reason" onkeydown="onInput = true" onkeyup="onInput = false" name="reason"></textarea><br />
+				<input type="submit" value="Pagina overslaan" />
+			</form>
+		<% end %>
+
+		<% (@messages || []).each do |msg| %>
+			<b class="<%= msg[:msg_class] %>"><%= msg[:msg] %></b><br />
+		<% end %>
+		<hr style="clear: both" />
+			<div style="float: right">
+				<b>Woord: </b>
+				<input type="text" onkeydown="onInput = true" onkeyup="onInput = false" id="searchStr" />
+				<b>Vervanging:</b>
+				<input type="text" id="replaceStr" />
+				<button style="height: 20px; font-size: 10px;line-height:12px;" onclick="viewer.findAndReplace($('searchStr').value, $('replaceStr').value)">Alles vervangen</button>
+			</div>
+			<button onclick="image_client.zoomIn()">+</button>
+			<button onclick="image_client.zoomOut()">-</button>
+			<button onclick="image_client.zoomBack()">[=]</button>
+			<button onclick="image_client.zoomBack(true)">&lt;-&gt;</button>
+		<hr style="clear: both" />
+		<div id="image_container" style="width: 550px; height: 600px; background-repeat: no-repeat; float: left; border: 1px solid;">
+		</div>
+		<div id="drag_resize" onmousedown="drag_resize_start(event)" style="cursor: col-resize; margin-left: 7px; border-left: 1px solid; border-right: 1px solid; float: left; margin-top: 250px; width: 3px;">&nbsp;</div>
+		<div id="ocr_container"> 
+		</div>
+		<div id="spinner_div">
+			<img src="<%= options.context_root %>/img/spinner.gif" />
+		</div>
+	</body>
+</html>
